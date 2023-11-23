@@ -1,10 +1,34 @@
+import { createElement } from "./utils.js";
 /**
  * Хранилище состояния приложения
  */
 class Store {
   constructor(initState = {}) {
-    this.state = initState;
+    this.state = { ...initState, selectedElement: null };
     this.listeners = []; // Слушатели изменений состояния
+    this.usedNumbers = new Set();
+    this.currentNumber = 8;
+    this.selectionCounts = {};
+  }
+
+  getSelectedElement() {
+    return this.state.selectedElement;
+  }
+
+  generateUniqueNumber() {
+    if (this.currentNumber > 200) {
+      return null;
+    }
+
+    while (this.usedNumbers.has(this.currentNumber)) {
+      this.currentNumber++;
+      if (this.currentNumber > 200) {
+        return null;
+      }
+    }
+
+    this.usedNumbers.add(this.currentNumber);
+    return this.currentNumber++;
   }
 
   /**
@@ -16,8 +40,8 @@ class Store {
     this.listeners.push(listener);
     // Возвращается функция для удаления добавленного слушателя
     return () => {
-      this.listeners = this.listeners.filter(item => item !== listener);
-    }
+      this.listeners = this.listeners.filter((item) => item !== listener);
+    };
   }
 
   /**
@@ -42,11 +66,19 @@ class Store {
    * Добавление новой записи
    */
   addItem() {
-    this.setState({
-      ...this.state,
-      list: [...this.state.list, {code: this.state.list.length + 1, title: 'Новая запись'}]
-    })
-  };
+    const randomNumber = this.generateUniqueNumber();
+    if (randomNumber !== null) {
+      const newItem = {
+        code: randomNumber,
+        title: "Новая запись",
+      };
+
+      this.setState({
+        ...this.state,
+        list: [...this.state.list, newItem],
+      });
+    }
+  }
 
   /**
    * Удаление записи по коду
@@ -55,24 +87,40 @@ class Store {
   deleteItem(code) {
     this.setState({
       ...this.state,
-      list: this.state.list.filter(item => item.code !== code)
-    })
-  };
+      list: this.state.list.filter((item) => item.code !== code),
+    });
+  }
 
   /**
    * Выделение записи по коду
    * @param code
    */
   selectItem(code) {
+    const selectionText = `Выделяли ${this.selectionCounts[code]} раз`;
+    const selectedElement = createElement(
+      "div",
+      { className: "selection-count" },
+      selectionText
+    );
+
+    const updatedList = this.state.list.map((item) => {
+      if (item.code === code) {
+        item.selected = !item.selected;
+        this.selectionCounts[code] = this.selectionCounts[code] || 0;
+        this.selectionCounts[code]++;
+        item.selectionCount = this.selectionCounts[code];
+      } else {
+        item.selected = false;
+        item.selectionCount = this.selectionCounts[item.code];
+      }
+      return item;
+    });
+
     this.setState({
       ...this.state,
-      list: this.state.list.map(item => {
-        if (item.code === code) {
-          item.selected = !item.selected;
-        }
-        return item;
-      })
-    })
+      list: updatedList,
+      selectedElement: selectionText,
+    });
   }
 }
 
